@@ -288,38 +288,85 @@ SDRESULTS SD_Init(SD_DEV *dev)
     return (ct ? SD_OK : SD_NOINIT);
 }
 
-int SD_Read(SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt)
-{
-    SDRESULTS res;
-    BYTE tkn, data;
-    WORD byte_num;
+int SD_Read(SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt){
+    static enum {SA,SB1,SB2A,SB2B,SB3,SC1,SC2,SD} next_state = SA;
+    static BYTE tkn, data;
+    static WORD byte_num;
+    static int idx;
+		int res;
+		
 		PTB->PSOR = MASK(DBG_2);
-    res = SD_ERROR;
-    if ((sector > dev->last_sector)||(cnt == 0)) 
-			return(SD_PARERR);
-    // Convert sector number to byte address (sector * SD_BLK_SIZE)
-    if (__SD_Send_Cmd(CMD17, sector * SD_BLK_SIZE) == 0) {
-        SPI_Timer_On(100);  // Wait for data packet (timeout of 100ms)
-        do {
-            tkn = SPI_RW(0xFF);
-        } while((tkn==0xFF)&&(SPI_Timer_Status()==TRUE));
-        SPI_Timer_Off();
-        // Token of single block?
-        if(tkn==0xFE) { 
-					// AGD: Loop fusion to simplify FSM formation
-					byte_num = 0;
-          do {
-						data = SPI_RW(0xff);
-						if ((byte_num >= ofs) && (byte_num < ofs+cnt)) {
-               *(BYTE*)dat = data;
-               ((BYTE *) dat)++;
-						} // else discard bytes before and after data
-          } while(++byte_num < SD_BLK_SIZE + 2 ); // 512 byte block + 2 byte CRC
-          res = SD_OK;
-        }
-    }
-    SPI_Release();
-    dev->debug.read++;
+    res = -1;
+		
+		switch (next_state) {
+			case SA:
+				if ((sector > dev->last_sector)||(cnt == 0)){
+					res = SD_PARERR;
+				}
+				else{
+					next_state = SB1;
+				}
+			break;
+			case SB1:
+				// Convert sector number to byte address (sector * SD_BLK_SIZE)
+				if (__SD_Send_Cmd(CMD17, sector * SD_BLK_SIZE) == 0) {
+					SPI_Timer_On(100);  // Wait for data packet (timeout of 100ms)
+					next_state = SB2A;
+				}
+				else{
+					res = SD_ERROR;
+					next_state = SA;
+				}
+			break;
+			case SB2A:
+				tkn = SPI_RW(0xFF);
+				next_state = SB2B;
+			break;
+			case SB2B:
+				if((tkn!=0xFF) || (SPI_Timer_Status()!=TRUE)){
+					SPI_Timer_Off();
+					// Token of single block?
+					if(tkn==0xFE) { 
+						// AGD: Loop fusion to simplify FSM formation
+						byte_num = 0;
+						idx = 0;
+						next_state = SC1;
+					}
+					else{
+						res = SD_ERROR;
+						next_state = SA;
+					}
+				}
+				else{
+					next_state = SB2A;
+				}
+			break;
+			case SC1:
+				data = SPI_RW(0xff);
+				if ((byte_num >= ofs) && (byte_num < ofs+cnt)) {
+					 (*((BYTE*)dat + idx)) = data;
+					 idx++;
+				} // else discard bytes before and after data
+				next_state = SC2;
+			break;
+			case SC2:
+				if(++byte_num < SD_BLK_SIZE + 2 ){ // 512 byte block + 2 byte CRC
+					next_state = SC1;
+				}
+				else{
+					res = SD_OK;
+					next_state = SA;
+				}
+			break;
+			default: next_state = SA;
+				break;
+		}
+		
+		if(next_state == SA){
+			SPI_Release();
+			dev->debug.read++;
+		}
+			
 		PTB->PCOR = MASK(DBG_2);
     return(res);
 }

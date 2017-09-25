@@ -47,12 +47,12 @@ void test_write(void) {
 			for (i=0; i<SD_BLK_SIZE; i++)
 				buffer[i] = 0;
 			// read block again
-			res = SD_Read(dev, (void*)buffer, sector_num, 0, 512);
+			res = ReadSD(dev, (void*)buffer, sector_num, 0, 512);
 			
 			if(res==SD_OK) {
-				for (i = 0, sum = 0; i < SD_BLK_SIZE; i++)
+				for (i = 0, sum = 0; i < SD_BLK_SIZE; i++){
 					sum += buffer[i];
-			
+				}	
 				if (sum == 0x06DC)
 					Control_RGB_LEDs(0,1,0); // Green - read was OK
 				else
