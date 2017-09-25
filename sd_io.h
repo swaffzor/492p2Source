@@ -91,7 +91,7 @@ SDRESULTS SD_Init (SD_DEV *dev);
     \param cnt Byte count (1..512).
     \return If all goes well returns SD_OK.
  */
-SDRESULTS SD_Read (SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt);
+int SD_Read (SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt);
 
 /**
     \brief Write a single block.

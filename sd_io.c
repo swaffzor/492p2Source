@@ -288,7 +288,7 @@ SDRESULTS SD_Init(SD_DEV *dev)
     return (ct ? SD_OK : SD_NOINIT);
 }
 
-SDRESULTS SD_Read(SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt)
+int SD_Read(SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt)
 {
     SDRESULTS res;
     BYTE tkn, data;

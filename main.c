@@ -7,6 +7,7 @@
 
 SDRESULTS Write2SD (SD_DEV *dev, void *dat, DWORD sector);
 SDRESULTS InitSD(SD_DEV *dev);
+SDRESULTS ReadSD (SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt);
 
 SD_DEV dev[1];          // Create device descriptor
 uint8_t buffer[512];    // Example of your buffer data
@@ -17,7 +18,7 @@ void test_write(void) {
 	// Read it back, compute simple checksum to confirm it is correct.
 	
 	int i;
-	DWORD sector_num = 0x32; // Manual wear leveling
+	DWORD sector_num = 0x24; // Manual wear leveling
   SDRESULTS res;
 	
 	PTB->PSOR = MASK(DBG_7);
@@ -36,8 +37,8 @@ void test_write(void) {
 	buffer[510] = 0xCA;
 	buffer[511] = 0xFE;
 	
-	res = InitSD(dev);
-  if(res==SD_OK) {
+	//res = InitSD(dev);
+  if(SD_Init(dev)==SD_OK) {
 		// Change the data in this sector
 		res = Write2SD(dev, (void*)buffer, sector_num);
 		if(res==SD_OK) {
@@ -96,6 +97,14 @@ SDRESULTS Write2SD (SD_DEV *dev, void *dat, DWORD sector){
 	int res;
 	do{
 		res = SD_Write(dev, dat, sector);
+	}while(res < 0);
+	return res;
+}
+
+SDRESULTS ReadSD (SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt){
+	int res;
+	do{
+		res = SD_Read(dev, dat, sector, ofs, cnt);
 	}while(res < 0);
 	return res;
 }
