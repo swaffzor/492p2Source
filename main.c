@@ -20,7 +20,7 @@ void test_write(void) {
 	DWORD sector_num = 0x32; // Manual wear leveling
   SDRESULTS res;
 	
-	PTB->PSOR = MASK(DBG_7);
+	//PTB->PSOR = MASK(DBG_7);
 	// Erase buffer
 	for (i=0; i<SD_BLK_SIZE; i++)
 		buffer[i] = 0;
@@ -79,16 +79,16 @@ void test_write(void) {
 	//while (1)
 		//;
 	
-	PTB->PCOR = MASK(DBG_7);
+	//PTB->PCOR = MASK(DBG_7);
 }
 
 SDRESULTS InitSD(SD_DEV *dev){
 	int res;
-	PTB->PSOR = MASK(DBG_0);
+	PTB->PSOR = MASK(DBG_7);
 	do{
 		res = SD_Init(dev);
-	}while(res < 0);
-	PTB->PCOR = MASK(DBG_0);
+	}while(res == -1);
+	PTB->PCOR = MASK(DBG_7);
 	return res;
 }
 
