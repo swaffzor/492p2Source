@@ -37,18 +37,20 @@ void test_write(void) {
 	buffer[510] = 0xCA;
 	buffer[511] = 0xFE;
 	
-	//res = InitSD(dev);
-  if(SD_Init(dev)==SD_OK) {
+	res = InitSD(dev);
+  if(res==SD_OK) {
+		
 		// Change the data in this sector
 		res = Write2SD(dev, (void*)buffer, sector_num);
 		if(res==SD_OK) {
 			Control_RGB_LEDs(0,0,1);	// Blue - written ok
+			
 			// erase buffer
 			for (i=0; i<SD_BLK_SIZE; i++)
 				buffer[i] = 0;
+			
 			// read block again
 			res = ReadSD(dev, (void*)buffer, sector_num, 0, 512);
-			
 			if(res==SD_OK) {
 				for (i = 0, sum = 0; i < SD_BLK_SIZE; i++){
 					sum += buffer[i];

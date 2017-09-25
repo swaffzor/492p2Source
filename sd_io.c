@@ -212,32 +212,31 @@ int SD_Init(SD_DEV *dev){
 					}
 					else{
 						next_state = SC;
+						SPI_Timer_On(500);
 						firstTime = 1;
 					}
 				break;
 				case SC:
 					PTB->PSOR = MASK(DBG_0);
-					if(firstTime){
-						SPI_Timer_On(500);
-						firstTime = 0;
-					}
-					else{
+//					if(firstTime){
+//						firstTime = 0;
+//					}
+//					else{
 						if(SPI_Timer_Status()==TRUE){
 							PTB->PTOR = MASK(DBG_5);
 							PTB->PTOR = MASK(DBG_5);
 						}
 						else{
-							//problem between here and state SD
 							SPI_Timer_Off();
 							dev->mount = FALSE;
 							SPI_Timer_On(500);
 							next_state = SD;
 						}
-					}
+					//}
 					PTB->PCOR = MASK(DBG_0);
 				break;
 				case SD:
-					if((__SD_Send_Cmd(CMD0, 0) == 1)||(SPI_Timer_Status()!=TRUE)){
+					if((__SD_Send_Cmd(CMD0, 0) != 1)&&(SPI_Timer_Status()==TRUE)){
 						PTB->PTOR = MASK(DBG_5);
 						PTB->PTOR = MASK(DBG_5);
 					}
@@ -255,15 +254,15 @@ int SD_Init(SD_DEV *dev){
 								n = 0;
 							}
 							else{
-								next_state = SE2B;
+								next_state = SE2B; //js: doesn't seem to ever hit here
 							}
 					}
 					else{
 						//end
-						next_state = SA;
+						next_state = SH;
 					}
 				break;
-				case SE2A:
+				case SE2A: //check here
 					// Get trailing return value of R7 resp
 					if(n < 4){
 						ocr[n++] = SPI_RW(0xFF);
@@ -301,23 +300,23 @@ int SD_Init(SD_DEV *dev){
 						if(__SD_Send_Cmd(CMD16, 512)) 
 							ct = 0;   // Set R/W block length to 512 bytes
 						//end
-						next_state = SA;
+						next_state = SH;
 					}
 				break;
 				case SF:
 					// VDD range of 2.7-3.6V is OK?  
-					if ((ocr[2] == 0x01)&&(ocr[3] == 0xAA)){
+					if ((ocr[2] == 0x01)&&(ocr[3] == 0xAA)){ //js: good here
 						// Wait for leaving idle state (ACMD41 with HCS bit)...
 						SPI_Timer_On(1000);
 						next_state = SF2;
 					}
 					else{
 						//end
-						next_state = SA;
+						next_state = SH;
 					}
 				break;
 				case SF2:
-					if((SPI_Timer_Status()!=TRUE) || !(__SD_Send_Cmd(ACMD41, 1UL << 30))) {
+					if((SPI_Timer_Status()==TRUE) && (__SD_Send_Cmd(ACMD41, 1UL << 30))) {
 							PTB->PTOR = MASK(DBG_5);
 							PTB->PTOR = MASK(DBG_5);
 					}
@@ -335,7 +334,7 @@ int SD_Init(SD_DEV *dev){
 					}
 					else{
 						//done end
-						next_state = SA;
+						next_state = SH; //js: got here, why???
 					}
 				break;
 				case SG2:
@@ -346,7 +345,7 @@ int SD_Init(SD_DEV *dev){
 						// SD version 2?
 						ct = (ocr[0] & 0x40) ? SDCT_SD2 | SDCT_BLOCK : SDCT_SD2;
 						//done end
-						next_state = SA;
+						next_state = SH;
 					}
 				break;
 				case SH:
@@ -374,7 +373,7 @@ int SD_Init(SD_DEV *dev){
     if(init_trys == SD_INIT_TRYS){
 			SPI_Release();
 			init_trys = 0;
-			return 0;
+			return SD_NOINIT; 
 		}
     //return (ct ? SD_OK : SD_NOINIT);
 		return res;
