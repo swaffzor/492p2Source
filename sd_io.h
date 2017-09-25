@@ -81,7 +81,7 @@ typedef struct _SD_DEV {
     \brief Initialization the SD card.
     \return If all goes well returns SD_OK.
  */
-SDRESULTS SD_Init (SD_DEV *dev);
+int SD_Init (SD_DEV *dev);
 
 /**
     \brief Read a single block.
