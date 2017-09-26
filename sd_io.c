@@ -187,7 +187,7 @@ DWORD __SD_Sectors (SD_DEV *dev)
 ******************************************************************************/
 
 int SD_Init(SD_DEV *dev){
-    static enum {SA,SB,SC,SD,SE,SE2A,SE2B,SE2B2,SF,SF2,SG,SG2,SH} next_state = SA;
+    static enum {SA,SB,SC,SD,SE,SE2A,SE2B,SE2B2,SF,SF2,SG,SG2,SH,SZ1,SS1,SS2,SS3,SS4,SS5,SZ2} next_state = SA;
     static BYTE n, cmd, ct = 0, ocr[4];
     static BYTE idx;
     static BYTE init_trys = 0;
@@ -217,7 +217,6 @@ int SD_Init(SD_DEV *dev){
 					}
 				break;
 				case SC:
-					PTB->PSOR = MASK(DBG_0);
 //					if(firstTime){
 //						firstTime = 0;
 //					}
@@ -233,7 +232,6 @@ int SD_Init(SD_DEV *dev){
 							next_state = SD;
 						}
 					//}
-					PTB->PCOR = MASK(DBG_0);
 				break;
 				case SD:
 					if((__SD_Send_Cmd(CMD0, 0) != 1)&&(SPI_Timer_Status()==TRUE)){
@@ -352,30 +350,38 @@ int SD_Init(SD_DEV *dev){
 					next_state = SA;
 					init_trys++;
 				break;
+				case SZ1:
+					dev->cardtype = ct;
+					dev->mount = TRUE;
+					dev->debug.read = 0;
+					dev->debug.write = 0;
+					next_state = SS1;
+				break;
+				case SS1:
+					
+				break;
+				case SZ2:
+					__SD_Speed_Transfer(HIGH); // High speed transfer
+					res = (ct ? SD_OK : SD_NOINIT);
+					ct = 0;
+					SPI_Release();
+				break;
 				default: next_state = SA;
 					break;
 			}
 		}
 		//state machine done, get results
     if(ct) {
-			dev->cardtype = ct;
-			dev->mount = TRUE;
 			dev->last_sector = __SD_Sectors(dev) - 1;
-			dev->debug.read = 0;
-			dev->debug.write = 0;
-			__SD_Speed_Transfer(HIGH); // High speed transfer
-			res = (ct ? SD_OK : SD_NOINIT);
-			ct = 0;
-			SPI_Release();
     }
 		
-		PTB->PCOR = MASK(DBG_5);
     if(init_trys == SD_INIT_TRYS){
 			SPI_Release();
 			init_trys = 0;
 			return SD_NOINIT; 
 		}
     //return (ct ? SD_OK : SD_NOINIT);
+		PTB->PCOR = MASK(DBG_5);
 		return res;
 }
 
