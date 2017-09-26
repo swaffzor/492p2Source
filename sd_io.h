@@ -73,6 +73,49 @@ typedef struct _SD_DEV {
     DBG_COUNT debug;
 } SD_DEV;
 
+
+/******************************************************************************
+ Private Methods Prototypes - Direct work with SD card
+******************************************************************************/
+
+/**
+    \brief Simple function to calculate power of two.
+    \param e Exponent.
+    \return Math function result.
+*/
+DWORD __SD_Power_Of_Two(BYTE e);
+
+/**
+     \brief Assert the SD card (SPI CS low).
+ */
+inline void __SD_Assert (void);
+
+/**
+    \brief Deassert the SD (SPI CS high).
+ */
+inline void __SD_Deassert (void);
+
+/**
+    \brief Change to max the speed transfer.
+    \param throttle
+ */
+void __SD_Speed_Transfer (BYTE throttle);
+
+/**
+    \brief Send SPI commands.
+    \param cmd Command to send.
+    \param arg Argument to send.
+    \return R1 response.
+ */
+BYTE __SD_Send_Cmd(BYTE cmd, DWORD arg);
+
+/**
+    \brief Get the total numbers of sectors in SD card.
+    \param dev Device descriptor.
+    \return Quantity of sectors. Zero if fail.
+ */
+DWORD __SD_Sectors (SD_DEV *dev);
+
 /*******************************************************************************
  * Public Methods - Direct work with SD card                                   *
  ******************************************************************************/
@@ -91,7 +134,7 @@ int SD_Init (SD_DEV *dev);
     \param cnt Byte count (1..512).
     \return If all goes well returns SD_OK.
  */
-SDRESULTS SD_Read (SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt);
+int SD_Read (SD_DEV *dev, void *dat, DWORD sector, WORD ofs, WORD cnt);
 
 /**
     \brief Write a single block.
