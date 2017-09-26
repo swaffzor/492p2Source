@@ -1,2 +1,4 @@
+#include "integer.h"
+#include "sd_io.h"
 
-DWORD __SD_SectorsFSM (SD_DEV *dev);
+LONG __SD_SectorsFSM (SD_DEV *dev);

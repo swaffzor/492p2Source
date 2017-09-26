@@ -2,27 +2,51 @@
 #include "sd_io.h"
 #include <MKL25Z4.h>
 #include "debug.h"
+#include "customSD.h"
 
-DWORD __SD_SectorsFSM (SD_DEV *dev);
-
-DWORD __SD_SectorsFSM (SD_DEV *dev)
+LONG __SD_SectorsFSM (SD_DEV *dev)
 {
-    BYTE csd[16];
-    BYTE idx;
+    static enum {SA,SB,SC,SD,SE,SERR} next_state = SA;
+    static BYTE csd[16];
+    static BYTE idx;
+    static WORD C_SIZE = 0;
+    static BYTE C_SIZE_MULT = 0;
+    static BYTE READ_BL_LEN = 0;
     DWORD ss = 0;
-    WORD C_SIZE = 0;
-    BYTE C_SIZE_MULT = 0;
-    BYTE READ_BL_LEN = 0;
-    if(__SD_Send_Cmd(CMD9, 0)==0) 
-    {
-        // Wait for response
-        while (SPI_RW(0xFF) == 0xFF);
-        for (idx=0; idx!=16; idx++) 
-					csd[idx] = SPI_RW(0xFF);
+		LONG res = -1;
+	
+		switch (next_state) {
+			case SA:
+				if(__SD_Send_Cmd(CMD9, 0)==0){
+					next_state = SB;
+				}
+				else{
+					next_state = SERR;
+				}
+			break;
+			case SB:
+				// Wait for response
+        if(!(SPI_RW(0xFF) == 0xFF)){
+					next_state = SC;
+					idx = 0;
+				}
+			break;
+			case SC:
+				if(idx < 16){ 
+					csd[idx++] = SPI_RW(0xFF);
+				}
+				else{
+					next_state = SD;
+				}
+			break;
+			case SD:
         // Dummy CRC
         SPI_RW(0xFF);
         SPI_RW(0xFF);
         SPI_Release();
+				next_state = SE;
+			break;
+			case SE:
         if(dev->cardtype & SDCT_SD1)
         {
             ss = csd[0];
@@ -54,7 +78,16 @@ DWORD __SD_SectorsFSM (SD_DEV *dev)
         ss *= __SD_Power_Of_Two(C_SIZE_MULT + 2);
         ss *= __SD_Power_Of_Two(READ_BL_LEN);
         ss /= SD_BLK_SIZE;
-
-        return (ss);
-    } else return (0); // Error
+				res = ss;
+				next_state = SA;
+			break;
+			case SERR:
+				res = 0;
+				next_state = SA;
+			break;
+			default: next_state = SA;
+				break;
+		}
+		
+		return res;
 }

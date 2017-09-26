@@ -15,48 +15,7 @@
 #include "sd_io.h"
 #include <MKL25Z4.h>
 #include "debug.h"
-
-/******************************************************************************
- Private Methods Prototypes - Direct work with SD card
-******************************************************************************/
-
-/**
-    \brief Simple function to calculate power of two.
-    \param e Exponent.
-    \return Math function result.
-*/
-DWORD __SD_Power_Of_Two(BYTE e);
-
-/**
-     \brief Assert the SD card (SPI CS low).
- */
-inline void __SD_Assert (void);
-
-/**
-    \brief Deassert the SD (SPI CS high).
- */
-inline void __SD_Deassert (void);
-
-/**
-    \brief Change to max the speed transfer.
-    \param throttle
- */
-void __SD_Speed_Transfer (BYTE throttle);
-
-/**
-    \brief Send SPI commands.
-    \param cmd Command to send.
-    \param arg Argument to send.
-    \return R1 response.
- */
-BYTE __SD_Send_Cmd(BYTE cmd, DWORD arg);
-
-/**
-    \brief Get the total numbers of sectors in SD card.
-    \param dev Device descriptor.
-    \return Quantity of sectors. Zero if fail.
- */
-DWORD __SD_Sectors (SD_DEV *dev);
+#include "customSD.h"
 
 /******************************************************************************
  Private Methods - Direct work with SD card
@@ -193,6 +152,7 @@ int SD_Init(SD_DEV *dev){
     static BYTE init_trys = 0;
 		static uint8_t firstTime;
 		int res = -1;
+		LONG temp;
 		
 		PTB->PSOR = MASK(DBG_5);
 		if((init_trys!=SD_INIT_TRYS)&&(!ct)){
@@ -340,10 +300,8 @@ int SD_Init(SD_DEV *dev){
 						ocr[n++] = SPI_RW(0xFF);
 					}
 					else{
-						// SD version 2?
-						ct = (ocr[0] & 0x40) ? SDCT_SD2 | SDCT_BLOCK : SDCT_SD2;
 						//done end
-						next_state = SH;
+						next_state = SZ1;
 					}
 				break;
 				case SH:
@@ -351,14 +309,21 @@ int SD_Init(SD_DEV *dev){
 					init_trys++;
 				break;
 				case SZ1:
-					dev->cardtype = ct;
+						// SD version 2?
+					dev->cardtype = (ocr[0] & 0x40) ? SDCT_SD2 | SDCT_BLOCK : SDCT_SD2;
 					dev->mount = TRUE;
 					dev->debug.read = 0;
 					dev->debug.write = 0;
 					next_state = SS1;
 				break;
 				case SS1:
-					
+					PTB->PSOR = MASK(DBG_0);
+					temp = __SD_SectorsFSM(dev);
+					if(temp > -1){
+						dev->last_sector = temp - 1;
+						next_state = SZ2;
+					}
+					PTB->PCOR = MASK(DBG_0);
 				break;
 				case SZ2:
 					__SD_Speed_Transfer(HIGH); // High speed transfer
@@ -370,15 +335,11 @@ int SD_Init(SD_DEV *dev){
 					break;
 			}
 		}
-		//state machine done, get results
-    if(ct) {
-			dev->last_sector = __SD_Sectors(dev) - 1;
-    }
 		
     if(init_trys == SD_INIT_TRYS){
 			SPI_Release();
 			init_trys = 0;
-			return SD_NOINIT; 
+			res = SD_NOINIT; 
 		}
     //return (ct ? SD_OK : SD_NOINIT);
 		PTB->PCOR = MASK(DBG_5);
