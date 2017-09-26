@@ -327,7 +327,7 @@ int SD_Init(SD_DEV *dev){
 				break;
 				case SZ2:
 					__SD_Speed_Transfer(HIGH); // High speed transfer
-					res = (ct ? SD_OK : SD_NOINIT);
+					res = (dev->cardtype ? SD_OK : SD_NOINIT);
 					ct = 0;
 					SPI_Release();
 				break;
